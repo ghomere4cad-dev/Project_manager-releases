@@ -7,7 +7,11 @@ setlocal EnableExtensions EnableDelayedExpansion
 :: Installe les outils 4CAD sur un poste utilisateur :
 ::   1. Node.js LTS (si absent)
 ::   2. Salesforce CLI (sf)
-::   3. uv
+::
+:: Variante Project Manager : copie adaptee de l'original fourni par l'equipe
+:: Data (qui installe aussi "uv", un outil de dev Python sans utilite pour un
+:: collegue qui ne fait qu'utiliser l'appli -- retire ici pour ne pas faire
+:: echouer tout le script sur un outil dont Project Manager n'a jamais besoin).
 ::
 :: Usage :
 ::   install_4cad_connectors.bat
@@ -20,8 +24,6 @@ setlocal EnableExtensions EnableDelayedExpansion
 ::   12 = npm introuvable apres installation
 ::   20 = echec installation Salesforce CLI
 ::   21 = sf introuvable apres installation
-::   30 = echec installation uv
-::   31 = uv introuvable apres installation
 :: =============================================================================
 
 set "SILENT=0"
@@ -56,9 +58,6 @@ if errorlevel 1 exit /b %errorlevel%
 call :ensure_sf
 if errorlevel 1 exit /b %errorlevel%
 
-call :ensure_uv
-if errorlevel 1 exit /b %errorlevel%
-
 call :log "Installation terminee avec succes"
 
 if "%SILENT%"=="0" (
@@ -70,9 +69,8 @@ if "%SILENT%"=="0" (
     echo   Versions detectees :
     call :print_version "npm.cmd" "--version"
     call :print_version "sf.cmd" "--version"
-    call :print_version "uv.exe" "--version"
     echo.
-    echo   Etape suivante - connexion Salesforce (une seule fois par machine) :
+    echo   Etape suivante - connexion Salesforce, une seule fois par machine :
     echo.
     echo     sf org login web --instance-url https://4cad.my.salesforce.com --alias 4cad-sf
     echo.
@@ -101,7 +99,7 @@ if not errorlevel 1 (
 )
 
 call :log "[NODE] npm absent - installation Node.js LTS via winget"
-if "%SILENT%"=="0" echo [1/3] Installation Node.js LTS...
+if "%SILENT%"=="0" echo [1/2] Installation Node.js LTS...
 
 where winget >nul 2>&1
 if errorlevel 1 (
@@ -168,7 +166,7 @@ if not errorlevel 1 (
     exit /b 0
 )
 
-if "%SILENT%"=="0" echo [2/3] Installation Salesforce CLI...
+if "%SILENT%"=="0" echo [2/2] Installation Salesforce CLI...
 
 call :find_npm
 if errorlevel 1 (
@@ -232,55 +230,6 @@ exit /b 21
 
 
 :: =============================================================================
-:: Installation uv
-:: =============================================================================
-
-:ensure_uv
-call :log "[UV] Verification uv"
-call :find_uv
-if not errorlevel 1 (
-    call :log "[UV] uv deja disponible"
-    exit /b 0
-)
-
-if "%SILENT%"=="0" echo [3/3] Installation uv...
-
-call :log "[UV] Installation via script officiel"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://astral.sh/uv/install.ps1 | iex" >> "%LOGFILE%" 2>&1
-if errorlevel 1 (
-    call :log "[UV][ERREUR] echec installation uv"
-    if "%SILENT%"=="0" (
-        echo.
-        echo ERREUR : echec installation uv.
-        echo Voir le log : %LOGFILE%
-        echo.
-        pause
-    )
-    exit /b 30
-)
-
-call :ensure_user_path "%USERPROFILE%\.local\bin"
-call :add_session_path "%USERPROFILE%\.local\bin"
-
-call :find_uv
-if not errorlevel 1 (
-    call :log "[UV] uv disponible apres installation"
-    exit /b 0
-)
-
-call :log "[UV][ERREUR] uv reste introuvable apres installation"
-if "%SILENT%"=="0" (
-    echo.
-    echo ERREUR : uv reste introuvable apres installation.
-    echo Fermez cette fenetre, ouvrez un nouveau terminal, puis relancez check_4cad_connectors.bat
-    echo Log : %LOGFILE%
-    echo.
-    pause
-)
-exit /b 31
-
-
-:: =============================================================================
 :: Fonctions utilitaires
 :: =============================================================================
 
@@ -295,12 +244,6 @@ exit /b 1
 where sf.cmd >nul 2>&1 && exit /b 0
 where sf >nul 2>&1 && exit /b 0
 if exist "%APPDATA%\npm\sf.cmd" exit /b 0
-exit /b 1
-
-:find_uv
-where uv.exe >nul 2>&1 && exit /b 0
-where uv >nul 2>&1 && exit /b 0
-if exist "%USERPROFILE%\.local\bin\uv.exe" exit /b 0
 exit /b 1
 
 :add_session_path
